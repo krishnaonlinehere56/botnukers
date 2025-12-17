@@ -4,8 +4,8 @@ import asyncio
 import datetime
 
 # ================== DIRECT CONFIG (NO config.json NEEDED) ==================
-TOKEN = "YOUR_BOT_TOKEN_HERE"          # <-- Yahan apna real bot token paste kar do
-OWNER_ID = 123456789012345678          # <-- Apna Discord User ID daal do (right-click yourself -> Copy ID)
+TOKEN = "MTQ1MDg0ODgxNjQ3NDQ5MzA3MQ.G_Jj48.2zpbq2JWuTevr8jW_-25LDp62GkPh4jvJK-4ak"          # <-- Yahan apna real bot token paste kar do
+OWNER_ID = 1339814044864872563          # <-- Apna Discord User ID daal do (right-click yourself -> Copy ID)
 PREFIX = "$"                           # <-- Apna prefix change kar sakte ho
 
 # Optional settings (change as needed)
