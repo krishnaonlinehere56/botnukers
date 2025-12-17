@@ -1,42 +1,34 @@
 import discord
 from discord.ext import commands, tasks
-import json
 import asyncio
 import datetime
 
-# --- CONFIG LOAD & CACHE ---
-def load_config():
-    try:
-        with open("config.json", "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print("❌ CRITICAL: config.json missing! Ultron cannot start.")
-        exit()
+# ================== DIRECT CONFIG (NO config.json NEEDED) ==================
+TOKEN = "YOUR_BOT_TOKEN_HERE"          # <-- Yahan apna real bot token paste kar do
+OWNER_ID = 123456789012345678          # <-- Apna Discord User ID daal do (right-click yourself -> Copy ID)
+PREFIX = "$"                           # <-- Apna prefix change kar sakte ho
 
-def save_config(data):
-    with open("config.json", "w") as f:
-        json.dump(data, f, indent=4)
+# Optional settings (change as needed)
+ANTINUKE_ENABLED = True                # Antinuke features on/off
+AUTOMODE_ENABLED = False               # Antilink etc. on/off
+ANTIBOT_ENABLED = True                 # Anti unauthorized bot add
 
-config = load_config()
-TOKEN = config["token"]
-OWNER_ID = int(config["owner_id"])
-PREFIX = config["prefix"]
+# Whitelists (directly add user/channel IDs here)
+whitelist_users = {OWNER_ID}           # Owner automatically whitelisted
+whitelist_channels = set()             # Yahan channel IDs add kar sakte ho: {123456789, 987654321}
+log_channel_id = None                   # Yahan log channel ID daal do agar chahiye: 123456789012345678
 
-# RAM Cache
-whitelist_users = set(config["whitelisted_users"])
-whitelist_users.add(OWNER_ID)
-whitelist_channels = set(config["whitelisted_channels"])
-log_channel_id = config.get("log_channel_id")
+# =============================================================================
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents, help_command=None)
 
 # --- STATUS CYCLE ---
 statuses = [
-    discord.Activity(type=discord.ActivityType.watching, name=f"over {len(bot.guilds)} servers | $help"),
+    discord.Activity(type=discord.ActivityType.watching, name=f"over {len(bot.guilds)} servers | {PREFIX}help"),
     discord.Activity(type=discord.ActivityType.watching, name="Humanity Fall"),
     discord.Activity(type=discord.ActivityType.playing, name="Nukers Get Fucked"),
-    discord.Activity(type=discord.ActivityType.listening, name="$antinuke | $help"),
+    discord.Activity(type=discord.ActivityType.listening, name=f"{PREFIX}antinuke | {PREFIX}help"),
     discord.Activity(type=discord.ActivityType.watching, name="26 Servers Protected ☢️")
 ]
 
@@ -99,7 +91,7 @@ async def on_ready():
 # Anti Channel Delete + Recovery
 @bot.event
 async def on_guild_channel_delete(channel):
-    if not config.get("antinuke", True):
+    if not ANTINUKE_ENABLED:
         return
     try:
         async for entry in channel.guild.audit_logs(limit=1, action=discord.AuditLogAction.channel_delete):
@@ -114,7 +106,7 @@ async def on_guild_channel_delete(channel):
 # Anti Mass Channel Create
 @bot.event
 async def on_guild_channel_create(channel):
-    if not config.get("antinuke", True):
+    if not ANTINUKE_ENABLED:
         return
     try:
         async for entry in channel.guild.audit_logs(limit=1, action=discord.AuditLogAction.channel_create):
@@ -129,7 +121,7 @@ async def on_guild_channel_create(channel):
 # Anti Role Delete + Recovery
 @bot.event
 async def on_guild_role_delete(role):
-    if not config.get("antinuke", True):
+    if not ANTINUKE_ENABLED:
         return
     try:
         async for entry in role.guild.audit_logs(limit=1, action=discord.AuditLogAction.role_delete):
@@ -144,7 +136,7 @@ async def on_guild_role_delete(role):
 # Anti Mass Role Create
 @bot.event
 async def on_guild_role_create(role):
-    if not config.get("antinuke", True):
+    if not ANTINUKE_ENABLED:
         return
     try:
         async for entry in role.guild.audit_logs(limit=1, action=discord.AuditLogAction.role_create):
@@ -159,7 +151,7 @@ async def on_guild_role_create(role):
 # Anti Unauthorized Ban
 @bot.event
 async def on_member_ban(guild, user):
-    if not config.get("antinuke", True):
+    if not ANTINUKE_ENABLED:
         return
     try:
         async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.ban):
@@ -170,16 +162,15 @@ async def on_member_ban(guild, user):
     except:
         pass
 
-# Anti Kick + High-Level Ban Kicker
+# Anti Kick
 @bot.event
 async def on_member_remove(member):
-    if not config.get("antinuke", True):
+    if not ANTINUKE_ENABLED:
         return
     try:
         async for entry in member.guild.audit_logs(limit=1, action=discord.AuditLogAction.kick):
             if entry.target.id == member.id and not is_safe(entry.user.id):
                 await punish_nuker(member.guild, entry.user, "High-Level Unauthorized Kick")
-                # Attempt to re-invite if possible, but Discord limits this
                 break
     except:
         pass
@@ -187,7 +178,7 @@ async def on_member_remove(member):
 # Anti Webhook Spam/Delete
 @bot.event
 async def on_webhooks_update(channel):
-    if not config.get("antinuke", True):
+    if not ANTINUKE_ENABLED:
         return
     try:
         async for entry in channel.guild.audit_logs(limit=5, action=discord.AuditLogAction.webhook_create):
@@ -202,7 +193,7 @@ async def on_webhooks_update(channel):
 # Anti Server Update
 @bot.event
 async def on_guild_update(before, after):
-    if not config.get("antinuke", True):
+    if not ANTINUKE_ENABLED:
         return
     if before.name != after.name or before.icon != after.icon or before.vanity_url_code != after.vanity_url_code:
         try:
@@ -215,10 +206,10 @@ async def on_guild_update(before, after):
         except:
             pass
 
-# Anti Bot Add + Kick Bot + Ban Adder (High-Level)
+# Anti Bot Add
 @bot.event
 async def on_member_join(member):
-    if config["modules"].get("antibot", True) and member.bot:
+    if ANTIBOT_ENABLED and member.bot:
         try:
             async for entry in member.guild.audit_logs(limit=1, action=discord.AuditLogAction.bot_add):
                 if not is_safe(entry.user.id):
@@ -236,9 +227,9 @@ async def on_message(message):
     if message.channel.id in whitelist_channels or is_safe(message.author.id):
         await bot.process_commands(message)
         return
-    if config.get("automode", False):
+    if AUTOMODE_ENABLED:
         content = message.content.lower()
-        if config["modules"].get("antilink", True) and ("http" in content or "discord.gg" in content or "discord.com/invite" in content):
+        if ("http" in content or "discord.gg" in content or "discord.com/invite" in content):
             try:
                 await message.delete()
             except:
@@ -250,27 +241,24 @@ async def on_message(message):
 async def antinuke(ctx):
     if ctx.author.id != OWNER_ID:
         return
-    config["antinuke"] = True
-    save_config(config)
+    global ANTINUKE_ENABLED
+    ANTINUKE_ENABLED = True
     await ctx.send("☢️ **ULTRON HIGH-LEVEL ANTINUKE: MAX POWER** | Nukers Fucked, Owner Safe")
 
 @bot.command()
 async def automode(ctx):
     if ctx.author.id != OWNER_ID:
         return
-    state = not config.get("automode", False)
-    config["automode"] = state
-    save_config(config)
-    await ctx.send(f"🛡️ **Automode:** {'HIGH-LEVEL ACTIVATED' if state else 'DEACTIVATED'}")
+    global AUTOMODE_ENABLED
+    AUTOMODE_ENABLED = not AUTOMODE_ENABLED
+    await ctx.send(f"🛡️ **Automode:** {'HIGH-LEVEL ACTIVATED' if AUTOMODE_ENABLED else 'DEACTIVATED'}")
 
 @bot.command()
 async def whitelist(ctx, member: discord.Member = None):
     if ctx.author.id != OWNER_ID:
         return
     if member:
-        config["whitelisted_users"].append(member.id)
         whitelist_users.add(member.id)
-        save_config(config)
         await ctx.send(f"✅ **{member}** High-Level Trusted (Owner Exception)")
     else:
         await ctx.send("Mention a member to whitelist.")
@@ -282,24 +270,19 @@ async def whitelistchannel(ctx, channel: discord.TextChannel = None):
     target = channel or ctx.channel
     if target.id in whitelist_channels:
         whitelist_channels.remove(target.id)
-        config["whitelisted_channels"].remove(target.id)
         msg = "🔒 High-Level Filters ON"
     else:
         whitelist_channels.add(target.id)
-        config["whitelisted_channels"].append(target.id)
         msg = "🔓 High-Level Filters OFF"
-    save_config(config)
     await ctx.send(f"{target.mention} {msg}")
 
 @bot.command()
 async def setlog(ctx, channel: discord.TextChannel = None):
     if ctx.author.id != OWNER_ID:
         return
-    target = channel or ctx.channel
-    config["log_channel_id"] = target.id
     global log_channel_id
+    target = channel or ctx.channel
     log_channel_id = target.id
-    save_config(config)
     await ctx.send(f"📡 High-Level Logs to {target.mention}")
 
 @bot.command()
@@ -313,11 +296,12 @@ async def ban(ctx, member: discord.Member, *, reason="No Reason"):
 @bot.command()
 async def help(ctx):
     embed = discord.Embed(title="🤖 ULTRON PRIME HIGH-LEVEL | NUKERS FUCK OFF", color=0xFF0000)
-    embed.add_field(name="Security", value="`$antinuke` `$automode`", inline=False)
-    embed.add_field(name="Config", value="`$whitelist` `$whitelistchannel` `$setlog`", inline=False)
-    embed.add_field(name="Moderation", value="`$ban`", inline=False)
+    embed.add_field(name="Security", value=f"`{PREFIX}antinuke` `{PREFIX}automode`", inline=False)
+    embed.add_field(name="Config", value=f"`{PREFIX}whitelist` `{PREFIX}whitelistchannel` `{PREFIX}setlog`", inline=False)
+    embed.add_field(name="Moderation", value=f"`{PREFIX}ban`", inline=False)
     embed.add_field(name="Status", value=f"High-Level Protecting **{len(bot.guilds)}** servers ☢️", inline=False)
     embed.set_footer(text="ULTRON PRIME | Owner Safe, Unbreakable Defense")
     await ctx.send(embed=embed)
 
+# ================== RUN BOT ==================
 bot.run(TOKEN)
