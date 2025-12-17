@@ -1,0 +1,17 @@
+{
+    "token": "MTQ1MDg0ODgxNjQ3NDQ5MzA3MQ.GL7Vn5.WCma-8iF3czRceTokt--adEa-XbWsKtVsrbwdk",
+    "owner_id": 1339814044864872563,
+    "prefix": "$",
+    "strict_mode": true,
+    "antinuke": true,
+    "automode": false,
+    "log_channel_id": null,
+    "whitelisted_users": [],
+    "whitelisted_channels": [],
+    "modules": {
+        "antilink": true,
+        "antispam": true,
+        "antibot": true,
+        "antiwebhook": true
+    }
+}
